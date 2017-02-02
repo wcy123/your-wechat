@@ -1,0 +1,36 @@
+curl -o jslogin.record -v -s 'https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&fun=new'
+qrcode=$(cat jslogin.record | sed 's/.*uuid = "\(.*\)";/\1/g')
+curl -o qrcode.jpg -v -s https://login.weixin.qq.com/qrcode/$qrcode
+open qrcode.jpg
+
+timestamp=$(date +%s)
+r=$((timestamp/1579))
+
+curl -o login.record -v -s "https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=$qrcode&tip=0&r=$r&_=$timesamp"
+a=$(cat login.record)
+while ! echo $a | grep window.code=200;do
+      curl -o login.record -v -s "https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=$qrcode&tip=0&r=$r&_=$timesamp"
+      a=$(cat login.record)
+      sleep 3;
+done
+
+redirect_url=$(cat login.record | grep window.redirect_uri | sed 's/window.redirect_uri="\(.*\)";/\1/g')
+curl -c ./cookie.jar -o redirect_url.record -v -s "$redirect_url"
+
+eval $(cat redirect_url.record | sed 's:<error>\(.*\)</error>:\1:g' | sed "s:<\(.*\)>\(.*\)</\1>:\1='\2';:g")
+
+webinitDir=$(dirname $(echo $redirect_url  | sed 's/\(http.*\)\?.*/\1/g'))/webwxinit
+
+data=$(cat <<EOF
+{
+  "BaseRequest": {
+       "Skey":"$skey",
+       "Sid" : "$wxsid",
+       "Uin" : "$wxuin",
+       "DeviceID": "$pass_ticket"
+  }
+}
+EOF
+    )
+
+curl -c ./cookie.jar -b ./cookie.jar -o webinit.record -v -s -d "$data" "$webinitDir"

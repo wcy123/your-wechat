@@ -1,0 +1,44 @@
+{
+  "webInitResponse": {
+    "BaseResponse": {
+      "Ret": 0,
+      "ErrMsg": ""
+    },
+    "Count": 5,
+    "ContactList": [
+      {
+        "Uin": 0,
+        "UserName": "filehelper",
+        "NickName": "文件传输助手",
+        "HeadImgUrl": "/cgi-bin/mmwebwx-bin/webwxgeticon?seq=656243886&username=filehelper&skey=@crypt_10a3f884_090536704aae166d9a40a1e8cb305b24",
+        "ContactFlag": 0,
+        "MemberCount": 0,
+        "MemberList": [],
+        "RemarkName": "",
+        "HideInputBarFlag": 0,
+        "Sex": 0,
+        "Signature": "",
+        "VerifyFlag": 0,
+        "OwnerUin": 0,
+        "PYInitial": "WJCSZS",
+        "PYQuanPin": "wenjianchuanshuzhushou",
+        "RemarkPYInitial": "",
+        "RemarkPYQuanPin": "",
+        "StarFriend": 0,
+        "AppAccountFlag": 0,
+        "Statues": 0,
+        "AttrStatus": 0,
+        "Province": "",
+        "City": "",
+        "Alias": "",
+        "SnsFlag": 0,
+        "UniFriend": 0,
+        "DisplayName": "",
+        "ChatRoomId": 0,
+        "KeyWord": "fil",
+        "EncryChatRoomId": "",
+        "IsOwner": 0
+      }
+    ]
+  }
+}
