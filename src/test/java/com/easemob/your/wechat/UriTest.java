@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.http.HttpHeaders;
 
@@ -45,7 +44,7 @@ public class UriTest {
     @Test
     public void main2() throws Exception {
         final YourWechatLoginInfo info = new YourWechatLoginInfo();
-        info.initCookie(Stream.of(
+        info.updateCookies(Stream.of(
                 "Set-Cookie: wxuin=1553301943; Domain=wx.qq.com; Path=/; Expires=Wed, 01-Feb-2017 02:57:24 GMT",
                 "Set-Cookie: wxsid=xyJVNKN+oSYaszPq; Domain=wx.qq.com; Path=/; Expires=Wed, 01-Feb-2017 02:57:24 GMT",
                 "Set-Cookie: wxloadtime=1485874644; Domain=wx.qq.com; Path=/; Expires=Wed, 01-Feb-2017 02:57:24 GMT"));

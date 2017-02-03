@@ -1,6 +1,7 @@
 package com.easemob.your.wechat;
 
 import java.io.IOException;
+import java.net.HttpCookie;
 
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
@@ -27,6 +28,10 @@ import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConvert
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.client.RestTemplate;
 import org.wcy123.ProtobufMessageConverter;
+import org.wcy123.protobuf.your.wechat.WechatProtos;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import com.google.common.collect.ImmutableList;
 
@@ -71,7 +76,9 @@ public class YourWechatConfig {
 
     @Bean
     MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter() {
-        return new MappingJackson2HttpMessageConverter();
+        final MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter = new MappingJackson2HttpMessageConverter();
+        mappingJackson2HttpMessageConverter.setObjectMapper(objectMapper());
+        return mappingJackson2HttpMessageConverter;
     }
 
     @Bean
@@ -82,6 +89,31 @@ public class YourWechatConfig {
     @Bean
     ByteArrayHttpMessageConverter byteArrayHttpMessageConverter() {
         return new ByteArrayHttpMessageConverter();
+    }
+
+    @Bean
+    ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        SimpleModule module = new SimpleModule()
+                .addDeserializer(WechatProtos.WebInitResponse.class,
+                        new ProtobufFieldDeserializer(WechatProtos.WebInitResponse.class))
+                .addSerializer(WechatProtos.WebInitResponse.class, new ProtobufFieldSerializer<>())
+                .addDeserializer(WechatProtos.ContactListResponse.class,
+                        new ProtobufFieldDeserializer(WechatProtos.ContactListResponse.class))
+                .addSerializer(WechatProtos.ContactListResponse.class,
+                        new ProtobufFieldSerializer<>())
+                .addDeserializer(HttpCookie.class, new HttpCookieJsonDeserializer())
+                .addSerializer(WechatProtos.MemberList.class,
+                        new ProtobufFieldSerializer<>())
+                .addDeserializer(WechatProtos.MemberList.class,
+                        new ProtobufFieldDeserializer(WechatProtos.MemberList.class))
+                .addSerializer(WechatProtos.SyncKey.class,
+                        new ProtobufFieldSerializer<>())
+                .addDeserializer(WechatProtos.SyncKey.class,
+                        new ProtobufFieldDeserializer(WechatProtos.SyncKey.class))
+                ;
+        mapper.registerModule(module);
+        return mapper;
     }
 
     @Bean

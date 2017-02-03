@@ -10,7 +10,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,6 +28,8 @@ import org.springframework.web.client.ResourceAccessException;
 
 import lombok.extern.slf4j.Slf4j;
 
+import static com.easemob.your.wechat.YourWechatLoginInfoUtils.getUin;
+
 @Component
 @Slf4j
 public class YourWechatLoginService {
@@ -38,8 +39,11 @@ public class YourWechatLoginService {
             Pattern.compile("window.redirect_uri=\"(\\S+)\";.*");
     private final static Pattern loginStatusPattern =
             Pattern.compile("YW:user:(.*):loginStatus");
+    public static final String YW_QRCODE = "YW:qrcode:*";
 
     ExecutorService executorService = Executors.newSingleThreadExecutor();
+    ExecutorService threadPool = Executors.newCachedThreadPool();
+
     @Autowired
     WechatLoginApi loginApiWrapper;
     @Autowired
@@ -65,8 +69,9 @@ public class YourWechatLoginService {
 
     @Scheduled(fixedRate = 5000)
     public void checkOneQrCode() {
-        scanForPattern("YW:qrcode:*", this::checkOneQrCode);
+        scanForPattern(YW_QRCODE, this::checkOneQrCode);
     }
+
     @Scheduled(fixedRate = 5000)
     public void checkSyncStatus() {
         scanForPattern("YW:user:*:loginStatus", this::checkOneLoginUser);
@@ -74,12 +79,43 @@ public class YourWechatLoginService {
 
     private void checkOneLoginUser(String s) {
         final Matcher matcher = loginStatusPattern.matcher(s);
-        if(matcher.find()){
+        if (matcher.find()) {
             final String uin = matcher.group(1);
-            final YourWechatLoginInfo loginInfo = wechatLoginInfoRepository.find(uin);
-        }else {
+            boolean lock = wechatLoginInfoRepository.lock(uin);
+            if (lock) {
+                final YourWechatLoginInfo loginInfo = wechatLoginInfoRepository.find(uin);
+                threadPool.submit(() -> syncLoginUser(loginInfo));
+            }
+        } else {
             log.error("logical error: {}", s);
         }
+    }
+
+    private void syncLoginUser(YourWechatLoginInfo loginInfo) {
+        try {
+            final boolean online = wechatLoginInfoRepository.isOnline(getUin(loginInfo));
+            if(online) {
+                Optional<String> syncStatus = loginApiWrapper.checkSync(loginInfo);
+                this.maybeSync(syncStatus, loginInfo);
+            }else {
+                log.info("sorry, {} is not online", getUin(loginInfo));
+            }
+        } finally {
+            wechatLoginInfoRepository
+                    .unlock(String.valueOf(loginInfo.getWebInitResponse().getUser().getUin()));
+        }
+    }
+
+    private void maybeSync(Optional<String> syncStatus, YourWechatLoginInfo loginInfo) {
+        if (!syncStatus.isPresent()) {
+            wechatLoginInfoRepository.setOnline(getUin(loginInfo), false);
+            return;
+        }
+        if ("0".equals(syncStatus.get())) {
+            log.info("no need to sync {}", getUin(loginInfo));
+            return;
+        }
+        loginApiWrapper.syncMsg(loginInfo).flatMap(this::saveLoginInfo);
     }
 
     private void scanForPattern(String pattern, Consumer<String> func) {
@@ -93,9 +129,7 @@ public class YourWechatLoginService {
                 try (Cursor<byte[]> cursor = connection.scan(options)) {
                     while (cursor.hasNext()) {
                         final byte[] bytes = cursor.next();
-                        final int prefixLength = pattern.length() - 1;
-                        final int len = bytes.length - prefixLength;
-                        func.accept(new String(bytes, prefixLength, len, Charset.forName("UTF-8")));
+                        func.accept(new String(bytes, Charset.forName("UTF-8")));
                     }
                 } catch (IOException e) {
                     log.error("cannot scan redis", e);
@@ -105,9 +139,8 @@ public class YourWechatLoginService {
         });
     }
 
-
-
-    private void checkOneQrCode(String code) {
+    private void checkOneQrCode(String redisKey) {
+        final String code = redisKey.substring(YW_QRCODE.length() -1);
         final String status = redisTemplate.boundValueOps(redisKey(code)).get();
         final Optional<String> loginStatus = loginApiWrapper.checkQrCode(code);
         log.info("start checking qrcode({})", code);
@@ -145,8 +178,16 @@ public class YourWechatLoginService {
                 .flatMap(this::checkWebInitResponse)
                 .flatMap(loginApiWrapper::showMobileLogin)
                 .flatMap(loginApiWrapper::retrieveContactList)
-                .flatMap(this::saveLoginInfo);
+                .flatMap(this::saveLoginInfo)
+                .flatMap(this::setOnline)
+        ;
 
+    }
+
+    private  Optional<YourWechatLoginInfo> setOnline(YourWechatLoginInfo info) {
+        wechatLoginInfoRepository.setOnline(getUin(info), true);
+        wechatLoginInfoRepository.unlock(getUin(info));
+        return Optional.of(info);
     }
 
     private Optional<YourWechatLoginInfo> checkBaseReqeustRetCode(
@@ -171,7 +212,7 @@ public class YourWechatLoginService {
 
     private Optional<YourWechatLoginInfo> saveLoginInfo(YourWechatLoginInfo loginInfo) {
         wechatLoginInfoRepository.save(loginInfo);
-        return Optional.empty();
+        return Optional.of(loginInfo);
     }
 
     private Optional<String> extractStatusCode(String loginStatus) {

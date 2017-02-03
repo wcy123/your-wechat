@@ -1,5 +1,7 @@
 package com.easemob.your.wechat;
 
+import static com.easemob.your.wechat.YourWechatLoginInfoUtils.getUin;
+
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
@@ -7,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +23,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.wcy123.protobuf.your.wechat.WechatProtos;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+
 import com.google.common.collect.ImmutableMap;
 
 import lombok.extern.slf4j.Slf4j;
@@ -28,12 +33,16 @@ import lombok.extern.slf4j.Slf4j;
 public class WechatLoginApi {
     private final static Pattern pattern =
             Pattern.compile("window.QRLogin.code = 200; window.QRLogin.uuid = \"(\\S+?)\"");
+    private final static Pattern patternSync =
+            Pattern.compile("window.synccheck=\\{retcode:\"(\\d+)\",selector:\"(\\d+)\"\\}");
     @Value("${weichat.appid}")
     private String appid;
     @Value("${weixin.login.base.url}")
     private String weixinBaseUrl;
     @Autowired
     private RestTemplate restTemplate;
+    @Autowired
+    private YourWechatLoginInfoRepository wechatLoginInfoRepository;
 
     public WechatLoginApi() {}
 
@@ -94,17 +103,19 @@ public class WechatLoginApi {
     public Optional<YourWechatLoginInfo> webInitStep1(YourWechatLoginInfo loginInfo) {
         try {
             log.info("getting baseresponse: {}", loginInfo);
+            request(loginInfo, HttpMethod.GET, loginInfo.getRawUrl());
             final ResponseEntity<ApiBaseResponse> exchange = restTemplate.exchange(
                     loginInfo.getRawUrl(), HttpMethod.GET, HttpEntity.EMPTY, ApiBaseResponse.class);
             loginInfo.setBaseResponse(exchange.getBody());
             final List<String> cookieStrings = exchange.getHeaders().get(HttpHeaders.SET_COOKIE);
-            loginInfo.initCookie(cookieStrings.stream());
+            loginInfo.updateCookies(cookieStrings.stream());
             log.info("getting baseresponse is done: {}", loginInfo);
             return Optional.of(loginInfo);
         } catch (RestClientException ex) {
             log.warn("cannot getting baseresponse: {}", loginInfo);
             return Optional.empty();
         }
+
     }
 
     public Optional<YourWechatLoginInfo> webInitStep2(YourWechatLoginInfo loginInfo) {
@@ -112,7 +123,7 @@ public class WechatLoginApi {
             log.info("webinit step2: {}", loginInfo);
             final HttpEntity<ApiBaseRequest> entity = new HttpEntity<ApiBaseRequest>(
                     ApiBaseRequest.builder()
-                            .baseRequest(buildBaseRequest(loginInfo))
+                            .baseRequest(loginInfo.buildBaseRequest())
                             .build(),
                     loginInfo.generateCookieHeader());
 
@@ -123,10 +134,12 @@ public class WechatLoginApi {
                     .build().toUri();
 
             final ResponseEntity<WechatProtos.WebInitResponse> exchange =
-                    restTemplate.exchange(uri, HttpMethod.POST, entity, WechatProtos.WebInitResponse.class);
+                    restTemplate.exchange(uri, HttpMethod.POST, entity,
+                            WechatProtos.WebInitResponse.class);
             loginInfo.setWebInitResponse(exchange.getBody());
+            loginInfo.setSyncKey(exchange.getBody().getSyncKey());
             log.info("getting baseresponse is done welcome: {}",
-                    loginInfo.getWebInitResponse().getUser().getUin());
+                    getUin(loginInfo));
             return Optional.of(loginInfo);
         } catch (RestClientException ex) {
             log.warn("cannot getting baseresponse step2: {}", loginInfo, ex);
@@ -134,16 +147,15 @@ public class WechatLoginApi {
         }
     }
 
-
     public Optional<YourWechatLoginInfo> showMobileLogin(YourWechatLoginInfo loginInfo) {
         try {
-            log.info("showMobileLogin: {}", loginInfo.getWebInitResponse().getUser().getUin());
+            log.info("showMobileLogin: {}", getUin(loginInfo));
             final HttpHeaders headers = loginInfo.generateCookieHeader();
             final long localTime = System.currentTimeMillis();
             headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
             final HttpEntity<Map<String, Object>> entity = new HttpEntity<>(
                     ImmutableMap.of(
-                            "BaseRequest", buildBaseRequest(loginInfo),
+                            "BaseRequest", loginInfo.buildBaseRequest(),
                             "Code", 3,
                             "FromUserName", loginInfo.getWebInitResponse().getUser().getUserName(),
                             "ToUserName", loginInfo.getWebInitResponse().getUser().getUserName(),
@@ -157,22 +169,23 @@ public class WechatLoginApi {
 
             final ResponseEntity<String> exchange =
                     restTemplate.exchange(uri, HttpMethod.POST, entity, String.class);
-            log.info("showMobileLogin: {} {}", loginInfo.getWebInitResponse().getUser().getUin(), exchange.getBody());
+            log.info("showMobileLogin: {} {}", getUin(loginInfo), exchange.getBody());
             return Optional.of(loginInfo);
         } catch (RestClientException ex) {
             log.warn("showMobileLogin error {}", loginInfo, ex);
             return Optional.empty();
         }
     }
+
     public Optional<YourWechatLoginInfo> retrieveContactList(YourWechatLoginInfo loginInfo) {
         try {
-            log.info("retrieveContactList: {}", loginInfo.getWebInitResponse().getUser().getUin());
+            log.info("start retrieveContactList: {}", getUin(loginInfo));
             final HttpHeaders headers = loginInfo.generateCookieHeader();
             final long localTime = System.currentTimeMillis();
             headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
             final HttpEntity<Map<String, Object>> entity = new HttpEntity<>(
                     ImmutableMap.of(
-                            "BaseRequest", buildBaseRequest(loginInfo),
+                            "BaseRequest", loginInfo.buildBaseRequest(),
                             "Code", 3,
                             "FromUserName", loginInfo.getWebInitResponse().getUser().getUserName(),
                             "ToUserName", loginInfo.getWebInitResponse().getUser().getUserName(),
@@ -186,8 +199,9 @@ public class WechatLoginApi {
                             .build().toUri();
 
             final ResponseEntity<WechatProtos.ContactListResponse> exchange =
-                    restTemplate.exchange(uri, HttpMethod.GET, entity, WechatProtos.ContactListResponse.class);
-            log.info("retrieveContactList:  {}", loginInfo.getWebInitResponse().getUser().getUin());
+                    restTemplate.exchange(uri, HttpMethod.GET, entity,
+                            WechatProtos.ContactListResponse.class);
+            log.info("end retrieveContactList:  {}", getUin(loginInfo));
             loginInfo.mergeContactList(exchange.getBody());
             return Optional.of(loginInfo);
         } catch (RestClientException ex) {
@@ -195,6 +209,7 @@ public class WechatLoginApi {
             return Optional.empty();
         }
     }
+
     // internal apis
     private String getQrUuidInternal(String appid, String fun) {
         final URI uri = UriComponentsBuilder.fromHttpUrl(getRootUrl("/jslogin"))
@@ -232,13 +247,96 @@ public class WechatLoginApi {
         // return restTemplate.exchange();
         return null;
     }
-    private ApiBaseRequest.BaseRequest buildBaseRequest(YourWechatLoginInfo loginInfo) {
-        return ApiBaseRequest.BaseRequest.builder()
-                .skey(loginInfo.getBaseResponse().getSkey())
-                .wxsid(loginInfo.getBaseResponse().getWxsid())
-                .wxuin(loginInfo.getBaseResponse().getWxuin())
-                .deviceId(loginInfo.getBaseResponse().getPass_ticket())
-                .build();
+
+    public Optional<String> checkSync(YourWechatLoginInfo loginInfo) {
+        try {
+            log.info("checkSync: {}", getUin(loginInfo));
+            final HttpHeaders headers = loginInfo.generateCookieHeader();
+            final long localTime = System.currentTimeMillis();
+            headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+            final HttpEntity<Map<String, Object>> entity = new HttpEntity<>(null, headers);
+            final URI uri =
+                    UriComponentsBuilder.fromHttpUrl(loginInfo.getRelativeSyncUrl("synccheck"))
+                            .queryParam("r", localTime)
+                            .queryParam("sid", loginInfo.getBaseResponse().getWxsid())
+                            .queryParam("uin", loginInfo.getBaseResponse().getWxuin())
+                            .queryParam("deviceid", loginInfo.getDeviceId())
+                            .queryParam("synckey", loginInfo.getWebInitResponse().getSyncKey())
+                            .build().toUri();
+
+            final ResponseEntity<String> exchange =
+                    restTemplate.exchange(uri, HttpMethod.GET, entity, String.class);
+            final String body = exchange.getBody();
+            log.info("checkSync:  {} -> {}", getUin(loginInfo), body);
+            final Matcher matcher = patternSync.matcher(body);
+            if (matcher.find()) {
+                if ("0".equals(matcher.group(1))) {
+                    return Optional.of(matcher.group(2));
+                }
+            }
+        } catch (RestClientException ex) {
+            log.warn("showMobileLogin error {}", loginInfo, ex);
+        }
+        return Optional.empty();
     }
 
+    public Optional<YourWechatLoginInfo> syncMsg(YourWechatLoginInfo loginInfo) {
+        try {
+            log.info("syncMsg: {}", getUin(loginInfo));
+            final HttpHeaders headers = loginInfo.generateCookieHeader();
+            final long localTime = System.currentTimeMillis() / 1000;
+            headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+            final HttpEntity<Map<String, Object>> entity = new HttpEntity<>(ImmutableMap.of(
+                    "BaseRequest", loginInfo.buildBaseRequest(),
+                    "SyncKey", loginInfo.getSyncKey(),
+                    "rr", ~localTime), headers);
+            final String uri =
+                    UriComponentsBuilder.fromHttpUrl(loginInfo.getRelativeUrl("webwxsync"))
+                            .queryParam("sid", loginInfo.getBaseResponse().getWxsid())
+                            .queryParam("skey", loginInfo.getBaseResponse().getSkey())
+                            .queryParam("pass_ticket", loginInfo.getBaseResponse().getPass_ticket())
+                            .build().toUri().toString();
+
+            final ResponseEntity<WechatProtos.SyncMessageResponse> exchange =
+                    restTemplate.exchange(uri, HttpMethod.POST, entity,
+                            WechatProtos.SyncMessageResponse.class);
+            final WechatProtos.SyncMessageResponse body = exchange.getBody();
+            loginInfo.setSyncKey(body.getSyncCheckKey());
+            log.info("syncMsg:  {} -> {}", getUin(loginInfo), loginInfo.syncKeyAsString());
+            return Optional.of(loginInfo);
+        } catch (Exception ex) {
+            log.warn("showMobileLogin error {}", loginInfo, ex);
+        }
+        return Optional.empty();
+    }
+
+    public <T> T request(YourWechatLoginInfo loginInfo,
+            HttpMethod method,
+            String url,
+            Map<String, Object> queryParam,
+            Object body,
+            HttpHeaders headers,
+            Class<T> clazz) {
+        final String urlWithQuery = queryParam.isEmpty() ? url : url + "?" + queryParam.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .collect(Collectors.joining("&"));
+        try {
+            log.info("http request {} {}", method, urlWithQuery);
+            log.debug("http request {}", body);
+            final HttpHeaders headersWithCookies = loginInfo.generateCookieHeader();
+            headersWithCookies.putAll(headers);
+            final ResponseEntity<T> exchange = restTemplate.exchange(
+                    urlWithQuery, method, new HttpEntity<>(body, headersWithCookies),
+                    clazz);
+            final List<String> cookieStrings = exchange.getHeaders().get(HttpHeaders.SET_COOKIE);
+            loginInfo.updateCookies(cookieStrings.stream());
+            wechatLoginInfoRepository.saveCookie(loginInfo);
+            log.info("http request {} {}", method, urlWithQuery, queryParam);
+            log.debug("http request {}", exchange.getBody());
+            return exchange.getBody();
+        } catch (RestClientException | JsonProcessingException ex) {
+            log.warn("fail http request {} {}", method, urlWithQuery, ex);
+            return null;
+        }
+    }
 }

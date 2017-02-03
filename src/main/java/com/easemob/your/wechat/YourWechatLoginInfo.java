@@ -52,13 +52,18 @@ public class YourWechatLoginInfo {
     private Boolean loginned = false;
     private String deviceId = null;
     private ApiBaseResponse baseResponse;
-    @JsonIgnore
     private WechatProtos.WebInitResponse webInitResponse;
+    private WechatProtos.SyncKey syncKey;
     @JsonIgnore
     private Map<String, WechatProtos.MemberList> contactList = new HashMap<>();
     @JsonIgnore
     private Map<String, HttpCookie> cookies = new HashMap<>();
 
+    public String syncKeyAsString() {
+        return syncKey.getListList().stream()
+                .map(s -> s.getKey() + "_" + s.getVal())
+                .collect(Collectors.joining("|"));
+    }
     public void setUrl(String rawUrl) {
         initRawAndBaseUrl(rawUrl);
         initUriQueryMap();
@@ -66,7 +71,7 @@ public class YourWechatLoginInfo {
         initFileAndSyncUrl();
     }
 
-    public void initCookie(Stream<String> headers) {
+    public void updateCookies(Stream<String> headers) {
         final Function<String, List<HttpCookie>> parser = HttpCookie::parse;
         final Predicate<HttpCookie> hasExpired = HttpCookie::hasExpired;
         cookies.putAll(headers.flatMap(parser.andThen(Collection::stream))
@@ -127,6 +132,18 @@ public class YourWechatLoginInfo {
         return baseUrl.resolve(x).toString();
     }
 
+    public String getRelativeSyncUrl(String x) {
+        if(syncUrl!=null) {
+            try {
+                return new URI(syncUrl).resolve(x).toString();
+            } catch (URISyntaxException e) {
+                return baseUrl.resolve(x).toString();
+            }
+        }else {
+            return baseUrl.resolve(x).toString();
+        }
+    }
+
     private String mmwebwxBin(String s) {
         return "https://" + s + "/cgi-bin/mmwebwx-bin";
     }
@@ -143,5 +160,14 @@ public class YourWechatLoginInfo {
         for (WechatProtos.MemberList memberList : contactListResponse.getMemberListList()) {
             contactList.put(memberList.getUserName(), memberList);
         }
+    }
+
+    public ApiBaseRequest.BaseRequest buildBaseRequest() {
+        return ApiBaseRequest.BaseRequest.builder()
+                .skey(getBaseResponse().getSkey())
+                .wxsid(getBaseResponse().getWxsid())
+                .wxuin(getBaseResponse().getWxuin())
+                .deviceId(getBaseResponse().getPass_ticket())
+                .build();
     }
 }

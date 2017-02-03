@@ -1,5 +1,7 @@
 package com.easemob.your.wechat;
 
+import com.google.common.collect.ImmutableMap;
+
 import com.easemob.your.wechat.impl.YourWechatLoginInfoRepositoryImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -8,10 +10,12 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpEntity;
 import org.wcy123.protobuf.your.wechat.WechatProtos;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.Map;
 
 import redis.clients.jedis.JedisPoolConfig;
 
@@ -39,14 +43,20 @@ public class YourWechatLoginInfoTest {
 
     @Test
     public void main2() throws Exception {
+        final YourWechatLoginInfo loginInfo = loadInfo();
+
+        System.out.println(loginInfo);;
+    }
+
+    private YourWechatLoginInfo loadInfo() {
         final String uin = "1553301943";
         final JedisPoolConfig poolConfig = new JedisPoolConfig();
         final JedisConnectionFactory connectionFactory = new JedisConnectionFactory(poolConfig);
         connectionFactory.afterPropertiesSet();
         final StringRedisTemplate redisTemplate =  new StringRedisTemplate(connectionFactory);
         yourWechatLoginInfoRepository.setRedisTemplate(redisTemplate);
-        final YourWechatLoginInfo loginInfo = yourWechatLoginInfoRepository.find(uin);
-
-        System.out.println(loginInfo);;
+        return yourWechatLoginInfoRepository.find(uin);
     }
+
+
 }

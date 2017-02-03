@@ -1,5 +1,7 @@
 syntax = "proto3";
 package org.wcy123.protobuf.your.wechat;
+import "google/protobuf/any.proto";
+
 message WebInitResponse {
     BaseResponse baseResponse = 1 [ json_name = "BaseResponse" ];
     int32 count = 2 [ json_name = "Count" ];
@@ -134,4 +136,98 @@ message MemberList {
     string keyWord = 29 [ json_name = "KeyWord" ];
     string encryChatRoomId = 30 [ json_name = "EncryChatRoomId" ];
     int32 isOwner = 31 [ json_name = "IsOwner" ];
+}
+message SyncMessageResponse {
+    BaseResponse baseResponse = 1 [ json_name = "BaseResponse" ];
+    int32 addMsgCount = 2 [ json_name = "AddMsgCount" ];
+    repeated AddMsgList addMsgList = 3 [ json_name = "AddMsgList" ];
+    int32 modContactCount = 4 [ json_name = "ModContactCount" ];
+    repeated google.protobuf.Any  modContactList = 5 [ json_name = "ModContactList" ];
+    int32 delContactCount = 6 [ json_name = "DelContactCount" ];
+    repeated google.protobuf.Any  delContactList = 7 [ json_name = "DelContactList" ];
+    int32 modChatRoomMemberCount = 8 [ json_name = "ModChatRoomMemberCount" ];
+    repeated google.protobuf.Any  modChatRoomMemberList = 9 [ json_name = "ModChatRoomMemberList" ];
+    Profile profile = 10 [ json_name = "Profile" ];
+    int32 continueFlag = 11 [ json_name = "ContinueFlag" ];
+    SyncKey syncKey = 12 [ json_name = "SyncKey" ];
+    string skey = 13 [ json_name = "SKey" ];
+    SyncKey syncCheckKey = 14 [ json_name = "SyncCheckKey" ];
+}
+
+
+message Profile {
+    int32 bitFlag = 1 [ json_name = "BitFlag" ];
+    UserName userName = 2 [ json_name = "UserName" ];
+    NickName nickName = 3 [ json_name = "NickName" ];
+    int32 bindUin = 4 [ json_name = "BindUin" ];
+    BindEmail bindEmail = 5 [ json_name = "BindEmail" ];
+    BindMobile bindMobile = 6 [ json_name = "BindMobile" ];
+    int32 status = 7 [ json_name = "Status" ];
+    int32 sex = 8 [ json_name = "Sex" ];
+    int32 personalCard = 9 [ json_name = "PersonalCard" ];
+    string alias = 10 [ json_name = "Alias" ];
+    int32 headImgUpdateFlag = 11 [ json_name = "HeadImgUpdateFlag" ];
+    string headImgUrl = 12 [ json_name = "HeadImgUrl" ];
+    string signature = 13 [ json_name = "Signature" ];
+}
+message BindMobile {
+    string buff = 1 [ json_name = "Buff" ];
+}
+message BindEmail {
+    string buff = 1 [ json_name = "Buff" ];
+}
+message NickName {
+    string buff = 1 [ json_name = "Buff" ];
+}
+message UserName {
+    string buff = 1 [ json_name = "Buff" ];
+}
+message AddMsgList {
+    string msgId = 1 [ json_name = "MsgId" ];
+    string fromUserName = 2 [ json_name = "FromUserName" ];
+    string toUserName = 3 [ json_name = "ToUserName" ];
+    int32 msgType = 4 [ json_name = "MsgType" ];
+    string content = 5 [ json_name = "Content" ];
+    int32 status = 6 [ json_name = "Status" ];
+    int32 imgStatus = 7 [ json_name = "ImgStatus" ];
+    int32 createTime = 8 [ json_name = "CreateTime" ];
+    int32 voiceLength = 9 [ json_name = "VoiceLength" ];
+    int32 playLength = 10 [ json_name = "PlayLength" ];
+    string fileName = 11 [ json_name = "FileName" ];
+    string fileSize = 12 [ json_name = "FileSize" ];
+    string mediaId = 13 [ json_name = "MediaId" ];
+    string url = 14 [ json_name = "Url" ];
+    int32 appMsgType = 15 [ json_name = "AppMsgType" ];
+    int32 statusNotifyCode = 16 [ json_name = "StatusNotifyCode" ];
+    string statusNotifyUserName = 17 [ json_name = "StatusNotifyUserName" ];
+    RecommendInfo recommendInfo = 18 [ json_name = "RecommendInfo" ];
+    int32 forwardFlag = 19 [ json_name = "ForwardFlag" ];
+    AppInfo appInfo = 20 [ json_name = "AppInfo" ];
+    int32 hasProductId = 21 [ json_name = "HasProductId" ];
+    string ticket = 22 [ json_name = "Ticket" ];
+    int32 imgHeight = 23 [ json_name = "ImgHeight" ];
+    int32 imgWidth = 24 [ json_name = "ImgWidth" ];
+    int32 subMsgType = 25 [ json_name = "SubMsgType" ];
+    double newMsgId = 26 [ json_name = "NewMsgId" ];
+    string oriContent = 27 [ json_name = "OriContent" ];
+}
+message AppInfo {
+    string appId = 1 [ json_name = "AppID" ];
+    int32 type = 2 [ json_name = "Type" ];
+}
+message RecommendInfo {
+    string userName = 1 [ json_name = "UserName" ];
+    string nickName = 2 [ json_name = "NickName" ];
+    int32 qqnum = 3 [ json_name = "QQNum" ];
+    string province = 4 [ json_name = "Province" ];
+    string city = 5 [ json_name = "City" ];
+    string content = 6 [ json_name = "Content" ];
+    string signature = 7 [ json_name = "Signature" ];
+    string alias = 8 [ json_name = "Alias" ];
+    int32 scene = 9 [ json_name = "Scene" ];
+    int32 verifyFlag = 10 [ json_name = "VerifyFlag" ];
+    int32 attrStatus = 11 [ json_name = "AttrStatus" ];
+    int32 sex = 12 [ json_name = "Sex" ];
+    string ticket = 13 [ json_name = "Ticket" ];
+    int32 opCode = 14 [ json_name = "OpCode" ];
 }

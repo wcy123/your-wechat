@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.support.atomic.RedisAtomicLong;
 import org.springframework.stereotype.Component;
 import org.wcy123.protobuf.your.wechat.WechatProtos;
 
@@ -24,27 +25,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRepository {
     public static final String PREFIX = "YW:user:";
-    private final ObjectMapper mapper;
+    @Autowired
+    ObjectMapper mapper;
     @Autowired
     StringRedisTemplate redisTemplate;
-
     public YourWechatLoginInfoRepositoryImpl() {
-        mapper = new ObjectMapper();
-        SimpleModule module = new SimpleModule()
-                .addDeserializer(WechatProtos.WebInitResponse.class,
-                        new ProtobufFieldDeserializer(WechatProtos.WebInitResponse.class))
-                .addSerializer(WechatProtos.WebInitResponse.class, new ProtobufFieldSerializer<>())
-                .addDeserializer(WechatProtos.ContactListResponse.class,
-                        new ProtobufFieldDeserializer(WechatProtos.ContactListResponse.class))
-                .addSerializer(WechatProtos.ContactListResponse.class,
-                        new ProtobufFieldSerializer<>())
-                .addDeserializer(HttpCookie.class, new HttpCookieJsonDeserializer())
-                .addSerializer(WechatProtos.MemberList.class,
-                        new ProtobufFieldSerializer<>())
-                .addDeserializer(WechatProtos.MemberList.class, new ProtobufFieldDeserializer(WechatProtos.MemberList.class))
 
-        ;
-        mapper.registerModule(module);
     }
 
     public void setRedisTemplate(StringRedisTemplate redisTemplate) {
@@ -54,17 +40,12 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
     public ObjectMapper getMapper() {
         return mapper;
     }
-
     @Override
     public YourWechatLoginInfo save(YourWechatLoginInfo info) {
         try {
             redisTemplate.boundValueOps(
                     getUserKey(getUin(info))).set(mapper.writeValueAsString(info));
-            for (Map.Entry<String, HttpCookie> cookieEntry : info.getCookies().entrySet()) {
-                redisTemplate.boundHashOps(
-                        getUserCookieKey(getUin(info))).put(cookieEntry.getKey(),
-                                mapper.writeValueAsString(cookieEntry.getValue()));
-            }
+            saveCookie(info);
             for (Map.Entry<String, WechatProtos.MemberList> entry : info.getContactList().entrySet()) {
                 redisTemplate.boundHashOps(
                         getUserContactKey(getUin(info))).put(entry.getValue().getUserName(),
@@ -77,6 +58,15 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
         }
         return info;
     }
+    @Override
+    public void saveCookie(YourWechatLoginInfo info) throws JsonProcessingException {
+        for (Map.Entry<String, HttpCookie> cookieEntry : info.getCookies().entrySet()) {
+            redisTemplate.boundHashOps(
+                    getUserCookieKey(getUin(info))).put(cookieEntry.getKey(),
+                            mapper.writeValueAsString(cookieEntry.getValue()));
+        }
+    }
+
     private String getUin(YourWechatLoginInfo info) {
         return String.valueOf(info.getWebInitResponse().getUser().getUin());
     }
@@ -89,6 +79,9 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
 
     private String getUserCookieKey(String uin) {
         return getUserKey(uin) + ":cookie";
+    }
+    private String getUserLockKey(String uin) {
+        return getUserKey(uin) + ":lock";
     }
 
     private String getUserKey(String uin) {
@@ -117,5 +110,27 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
             log.error("cannot find {} ",uin, ex);
             return null;
         }
+    }
+
+    @Override
+    public boolean lock(String uin) {
+        RedisAtomicLong redisAtomicLong = new RedisAtomicLong(getUserLockKey(uin), redisTemplate.getConnectionFactory());
+        return redisAtomicLong.compareAndSet(0, 1);
+    }
+    @Override
+    public boolean unlock(String uin) {
+        RedisAtomicLong redisAtomicLong = new RedisAtomicLong(getUserLockKey(uin), redisTemplate.getConnectionFactory());
+        redisAtomicLong.set(0);
+        return true;
+    }
+    @Override
+    public boolean isOnline(String uin) {
+        RedisAtomicLong redisAtomicLong = new RedisAtomicLong(getUserLoginStatus(uin), redisTemplate.getConnectionFactory());
+        return redisAtomicLong.get() == 1;
+    }
+    @Override
+    public void setOnline(String uin, boolean online) {
+        RedisAtomicLong redisAtomicLong = new RedisAtomicLong(getUserLoginStatus(uin), redisTemplate.getConnectionFactory());
+        redisAtomicLong.set(online?1:0);
     }
 }
