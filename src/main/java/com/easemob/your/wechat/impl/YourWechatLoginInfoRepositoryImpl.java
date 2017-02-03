@@ -10,14 +10,10 @@ import org.springframework.data.redis.support.atomic.RedisAtomicLong;
 import org.springframework.stereotype.Component;
 import org.wcy123.protobuf.your.wechat.WechatProtos;
 
-import com.easemob.your.wechat.HttpCookieJsonDeserializer;
-import com.easemob.your.wechat.ProtobufFieldDeserializer;
-import com.easemob.your.wechat.ProtobufFieldSerializer;
 import com.easemob.your.wechat.YourWechatLoginInfo;
 import com.easemob.your.wechat.YourWechatLoginInfoRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,6 +25,7 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
     ObjectMapper mapper;
     @Autowired
     StringRedisTemplate redisTemplate;
+
     public YourWechatLoginInfoRepositoryImpl() {
 
     }
@@ -40,24 +37,27 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
     public ObjectMapper getMapper() {
         return mapper;
     }
+
     @Override
     public YourWechatLoginInfo save(YourWechatLoginInfo info) {
         try {
             redisTemplate.boundValueOps(
                     getUserKey(getUin(info))).set(mapper.writeValueAsString(info));
             saveCookie(info);
-            for (Map.Entry<String, WechatProtos.MemberList> entry : info.getContactList().entrySet()) {
+            for (Map.Entry<String, WechatProtos.MemberList> entry : info.getContactList()
+                    .entrySet()) {
                 redisTemplate.boundHashOps(
                         getUserContactKey(getUin(info))).put(entry.getValue().getUserName(),
                                 mapper.writeValueAsString(entry.getValue()));
             }
-            //redisTemplate.boundValueOps(getUserLoginStatus(getUin(info))).set(String.valueOf(info.getLoginned()));
+            // redisTemplate.boundValueOps(getUserLoginStatus(getUin(info))).set(String.valueOf(info.getLoginned()));
         } catch (JsonProcessingException ex) {
             log.error("cannot save {}", ex);
             return info;
         }
         return info;
     }
+
     @Override
     public void saveCookie(YourWechatLoginInfo info) throws JsonProcessingException {
         for (Map.Entry<String, HttpCookie> cookieEntry : info.getCookies().entrySet()) {
@@ -70,9 +70,11 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
     private String getUin(YourWechatLoginInfo info) {
         return String.valueOf(info.getWebInitResponse().getUser().getUin());
     }
+
     private String getUserContactKey(String uin) {
         return getUserKey(uin) + ":contact";
     }
+
     private String getUserLoginStatus(String uin) {
         return getUserKey(uin) + ":loginStatus";
     }
@@ -80,6 +82,7 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
     private String getUserCookieKey(String uin) {
         return getUserKey(uin) + ":cookie";
     }
+
     private String getUserLockKey(String uin) {
         return getUserKey(uin) + ":lock";
     }
@@ -96,41 +99,56 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
     @Override
     public YourWechatLoginInfo find(String uin) {
         try {
-            final YourWechatLoginInfo info = mapper.readValue(redisTemplate.boundValueOps(getUserKey(uin)).get(), YourWechatLoginInfo.class);
-            for (Map.Entry<String, String> cookieEntry : redisTemplate.<String, String>boundHashOps(getUserCookieKey(uin)).entries().entrySet()) {
-                final HttpCookie httpCookie = mapper.readValue(cookieEntry.getValue(), HttpCookie.class);
+            final String content = redisTemplate.boundValueOps(getUserKey(uin)).get();
+            if (content == null) {
+                return null;
+            }
+            final YourWechatLoginInfo info = mapper.readValue(content, YourWechatLoginInfo.class);
+            for (Map.Entry<String, String> cookieEntry : redisTemplate
+                    .<String, String>boundHashOps(getUserCookieKey(uin)).entries().entrySet()) {
+                final HttpCookie httpCookie =
+                        mapper.readValue(cookieEntry.getValue(), HttpCookie.class);
                 info.getCookies().put(cookieEntry.getKey(), httpCookie);
             }
-            for (Map.Entry<String, String> memberListEntry : redisTemplate.<String, String>boundHashOps(getUserContactKey(uin)).entries().entrySet()) {
-                final WechatProtos.MemberList memberList = mapper.readValue(memberListEntry.getValue(), WechatProtos.MemberList.class);
+            for (Map.Entry<String, String> memberListEntry : redisTemplate
+                    .<String, String>boundHashOps(getUserContactKey(uin)).entries().entrySet()) {
+                final WechatProtos.MemberList memberList =
+                        mapper.readValue(memberListEntry.getValue(), WechatProtos.MemberList.class);
                 info.getContactList().put(memberListEntry.getKey(), memberList);
             }
             return info;
         } catch (IOException ex) {
-            log.error("cannot find {} ",uin, ex);
+            log.error("cannot find {} ", uin, ex);
             return null;
         }
     }
 
     @Override
     public boolean lock(String uin) {
-        RedisAtomicLong redisAtomicLong = new RedisAtomicLong(getUserLockKey(uin), redisTemplate.getConnectionFactory());
+        RedisAtomicLong redisAtomicLong =
+                new RedisAtomicLong(getUserLockKey(uin), redisTemplate.getConnectionFactory());
         return redisAtomicLong.compareAndSet(0, 1);
     }
+
     @Override
     public boolean unlock(String uin) {
-        RedisAtomicLong redisAtomicLong = new RedisAtomicLong(getUserLockKey(uin), redisTemplate.getConnectionFactory());
+        RedisAtomicLong redisAtomicLong =
+                new RedisAtomicLong(getUserLockKey(uin), redisTemplate.getConnectionFactory());
         redisAtomicLong.set(0);
         return true;
     }
+
     @Override
     public boolean isOnline(String uin) {
-        RedisAtomicLong redisAtomicLong = new RedisAtomicLong(getUserLoginStatus(uin), redisTemplate.getConnectionFactory());
+        RedisAtomicLong redisAtomicLong =
+                new RedisAtomicLong(getUserLoginStatus(uin), redisTemplate.getConnectionFactory());
         return redisAtomicLong.get() == 1;
     }
+
     @Override
     public void setOnline(String uin, boolean online) {
-        RedisAtomicLong redisAtomicLong = new RedisAtomicLong(getUserLoginStatus(uin), redisTemplate.getConnectionFactory());
-        redisAtomicLong.set(online?1:0);
+        RedisAtomicLong redisAtomicLong =
+                new RedisAtomicLong(getUserLoginStatus(uin), redisTemplate.getConnectionFactory());
+        redisAtomicLong.set(online ? 1 : 0);
     }
 }
