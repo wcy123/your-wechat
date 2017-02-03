@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.net.HttpCookie;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -15,13 +15,12 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.wcy123.ProtobufMessageConverter;
 import org.wcy123.protobuf.your.wechat.WechatProtos;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -34,14 +33,10 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Message;
-import com.google.protobuf.MessageOrBuilder;
-import com.google.protobuf.util.JsonFormat;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -57,10 +52,11 @@ public class YourWechatLoginInfo {
     private Boolean loginned = false;
     private String deviceId = null;
     private ApiBaseResponse baseResponse;
-    private WechatProtos.Root webInitResponse;
-    @JsonDeserialize(using = HttpCookieJsonDeserializer.class)
-    @JsonSerialize(using = HttpCookieJsonSerializer.class)
-    private List<HttpCookie> cookies = new ArrayList<>();
+    private WechatProtos.WebInitResponse webInitResponse;
+    @JsonIgnore
+    private WechatProtos.ContactListResponse contactListResponse;
+    @JsonIgnore
+    private Map<String, HttpCookie> cookies = new HashMap<>();
 
     public void setUrl(String rawUrl) {
         initRawAndBaseUrl(rawUrl);
@@ -72,9 +68,9 @@ public class YourWechatLoginInfo {
     public void initCookie(Stream<String> headers) {
         final Function<String, List<HttpCookie>> parser = HttpCookie::parse;
         final Predicate<HttpCookie> hasExpired = HttpCookie::hasExpired;
-        cookies = headers.flatMap(parser.andThen(Collection::stream))
+        cookies.putAll(headers.flatMap(parser.andThen(Collection::stream))
                 .filter(hasExpired.negate())
-                .collect(Collectors.toList());
+                .collect(Collectors.toMap(HttpCookie::getName, e-> e)));
     }
 
     private void initFileAndSyncUrl() {
@@ -137,60 +133,9 @@ public class YourWechatLoginInfo {
     public HttpHeaders generateCookieHeader() {
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.add(HttpHeaders.COOKIE,
-                cookies.stream().map(c -> c.getName() + "=" + c.getValue())
+                cookies.entrySet().stream().map(c -> c.getValue().getName() + "=" + c.getValue().getValue())
                         .collect(Collectors.joining(";")));
         return httpHeaders;
     }
 
-
-    private static class HttpCookieJsonDeserializer extends JsonDeserializer<List<HttpCookie>> {
-        @Override
-        public List<HttpCookie> deserialize(JsonParser jsonParser,
-                DeserializationContext deserializationContext)
-                throws IOException, JsonProcessingException {
-
-            final ArrayNode jsonNodes = jsonParser.readValueAs(ArrayNode.class);
-            final Predicate<TreeNode> isObject = TreeNode::isObject;
-            return IntStream.range(0, jsonNodes.size())
-                    .boxed()
-                    .map(jsonNodes::get)
-                    .map(t1 -> {
-                        final HttpCookie httpCookie =
-                                new HttpCookie(t1.get("name").asText(),
-                                        t1.get("value").asText());
-
-                        final JsonNode comment = t1.get("comment");
-                        if (comment.isTextual()) {
-                            httpCookie.setComment(comment.asText());
-                        }
-                        final JsonNode domain = t1.get("domain");
-                        if (comment.isTextual()) {
-                            httpCookie.setDomain(comment.asText());
-                        }
-                        final JsonNode maxAge = t1.get("maxAge");
-                        if (maxAge.isNumber()) {
-                            httpCookie.setMaxAge(comment.asLong());
-                        }
-                        final JsonNode path = t1.get("path");
-                        if (path.isTextual()) {
-                            httpCookie.setPath(path.asText());
-                        }
-                        return httpCookie;
-                    })
-                    .collect(Collectors.toList());
-        }
-    }
-
-    private static class HttpCookieJsonSerializer extends JsonSerializer<List<HttpCookie>> {
-        @Override
-        public void serialize(List<HttpCookie> httpCookie, JsonGenerator jsonGenerator,
-                SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
-            String s;
-            jsonGenerator.writeStartArray();
-            for (HttpCookie cookie : httpCookie) {
-                jsonGenerator.writeObject(cookie);
-            }
-            jsonGenerator.writeEndArray();
-        }
-    }
 }

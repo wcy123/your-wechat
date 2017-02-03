@@ -122,8 +122,8 @@ public class WechatLoginApi {
                     .queryParam("_", localTime)
                     .build().toUri();
 
-            final ResponseEntity<WechatProtos.Root> exchange =
-                    restTemplate.exchange(uri, HttpMethod.POST, entity, WechatProtos.Root.class);
+            final ResponseEntity<WechatProtos.WebInitResponse> exchange =
+                    restTemplate.exchange(uri, HttpMethod.POST, entity, WechatProtos.WebInitResponse.class);
             loginInfo.setWebInitResponse(exchange.getBody());
             log.info("getting baseresponse is done welcome: {}",
                     loginInfo.getWebInitResponse().getUser().getUin());
@@ -164,7 +164,37 @@ public class WechatLoginApi {
             return Optional.empty();
         }
     }
+    public Optional<YourWechatLoginInfo> retrieveContactList(YourWechatLoginInfo loginInfo) {
+        try {
+            log.info("retrieveContactList: {}", loginInfo.getWebInitResponse().getUser().getUin());
+            final HttpHeaders headers = loginInfo.generateCookieHeader();
+            final long localTime = System.currentTimeMillis();
+            headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+            final HttpEntity<Map<String, Object>> entity = new HttpEntity<>(
+                    ImmutableMap.of(
+                            "BaseRequest", buildBaseRequest(loginInfo),
+                            "Code", 3,
+                            "FromUserName", loginInfo.getWebInitResponse().getUser().getUserName(),
+                            "ToUserName", loginInfo.getWebInitResponse().getUser().getUserName(),
+                            "ClientMsgId", localTime),
+                    headers);
+            final URI uri =
+                    UriComponentsBuilder.fromHttpUrl(loginInfo.getRelativeUrl("webwxgetcontact"))
+                            .queryParam("r", localTime)
+                            .queryParam("seq", 0)
+                            .queryParam("skey", loginInfo.getBaseResponse().getSkey())
+                            .build().toUri();
 
+            final ResponseEntity<WechatProtos.ContactListResponse> exchange =
+                    restTemplate.exchange(uri, HttpMethod.GET, entity, WechatProtos.ContactListResponse.class);
+            log.info("retrieveContactList:  {}", loginInfo.getWebInitResponse().getUser().getUin());
+            loginInfo.setContactListResponse(exchange.getBody());
+            return Optional.of(loginInfo);
+        } catch (RestClientException ex) {
+            log.warn("showMobileLogin error {}", loginInfo, ex);
+            return Optional.empty();
+        }
+    }
     // internal apis
     private String getQrUuidInternal(String appid, String fun) {
         final URI uri = UriComponentsBuilder.fromHttpUrl(getRootUrl("/jslogin"))

@@ -123,6 +123,7 @@ public class YourWechatLoginService {
                 .flatMap(loginApiWrapper::webInitStep2)
                 .flatMap(this::checkWebInitResponse)
                 .flatMap(loginApiWrapper::showMobileLogin)
+                .flatMap(loginApiWrapper::retrieveContactList)
                 .flatMap(this::saveLoginInfo);
 
     }

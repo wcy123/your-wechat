@@ -1,6 +1,6 @@
 syntax = "proto3";
 package org.wcy123.protobuf.your.wechat;
-message Root {
+message WebInitResponse {
     BaseResponse baseResponse = 1 [ json_name = "BaseResponse" ];
     int32 count = 2 [ json_name = "Count" ];
     repeated ContactList contactList = 3 [ json_name = "ContactList" ];
@@ -79,7 +79,7 @@ message ContactList {
     int32 starFriend = 18 [ json_name = "StarFriend" ];
     int32 appAccountFlag = 19 [ json_name = "AppAccountFlag" ];
     int32 statues = 20 [ json_name = "Statues" ];
-    int32 attrStatus = 21 [ json_name = "AttrStatus" ];
+    uint32 attrStatus = 21 [ json_name = "AttrStatus" ];
     string province = 22 [ json_name = "Province" ];
     string city = 23 [ json_name = "City" ];
     string alias = 24 [ json_name = "Alias" ];
@@ -91,20 +91,47 @@ message ContactList {
     string encryChatRoomId = 30 [ json_name = "EncryChatRoomId" ];
     int32 isOwner = 31 [ json_name = "IsOwner" ];
 }
+message BaseResponse {
+    int32 ret = 1 [ json_name = "Ret" ];
+    string errMsg = 2 [ json_name = "ErrMsg" ];
+}
+
+
+message ContactListResponse {
+    BaseResponse baseResponse = 1 [ json_name = "BaseResponse" ];
+    int32 memberCount = 2 [ json_name = "MemberCount" ];
+    repeated MemberList memberList = 3 [ json_name = "MemberList" ];
+    int32 seq = 4 [ json_name = "Seq" ];
+}
 message MemberList {
     int32 uin = 1 [ json_name = "Uin" ];
     string userName = 2 [ json_name = "UserName" ];
     string nickName = 3 [ json_name = "NickName" ];
-    int32 attrStatus = 4 [ json_name = "AttrStatus" ];
-    string pyinitial = 5 [ json_name = "PYInitial" ];
-    string pyquanPin = 6 [ json_name = "PYQuanPin" ];
-    string remarkPyinitial = 7 [ json_name = "RemarkPYInitial" ];
-    string remarkPyquanPin = 8 [ json_name = "RemarkPYQuanPin" ];
-    int32 memberStatus = 9 [ json_name = "MemberStatus" ];
-    string displayName = 10 [ json_name = "DisplayName" ];
-    string keyWord = 11 [ json_name = "KeyWord" ];
-}
-message BaseResponse {
-    int32 ret = 1 [ json_name = "Ret" ];
-    string errMsg = 2 [ json_name = "ErrMsg" ];
+    string headImgUrl = 4 [ json_name = "HeadImgUrl" ];
+    int32 contactFlag = 5 [ json_name = "ContactFlag" ];
+    int32 memberCount = 6 [ json_name = "MemberCount" ];
+    string remarkName = 8 [ json_name = "RemarkName" ];
+    int32 hideInputBarFlag = 9 [ json_name = "HideInputBarFlag" ];
+    int32 sex = 10 [ json_name = "Sex" ];
+    string signature = 11 [ json_name = "Signature" ];
+    int32 verifyFlag = 12 [ json_name = "VerifyFlag" ];
+    int32 ownerUin = 13 [ json_name = "OwnerUin" ];
+    string pyinitial = 14 [ json_name = "PYInitial" ];
+    string pyquanPin = 15 [ json_name = "PYQuanPin" ];
+    string remarkPyinitial = 16 [ json_name = "RemarkPYInitial" ];
+    string remarkPyquanPin = 17 [ json_name = "RemarkPYQuanPin" ];
+    int32 starFriend = 18 [ json_name = "StarFriend" ];
+    int32 appAccountFlag = 19 [ json_name = "AppAccountFlag" ];
+    int32 statues = 20 [ json_name = "Statues" ];
+    uint32 attrStatus = 21 [ json_name = "AttrStatus" ];
+    string province = 22 [ json_name = "Province" ];
+    string city = 23 [ json_name = "City" ];
+    string alias = 24 [ json_name = "Alias" ];
+    int32 snsFlag = 25 [ json_name = "SnsFlag" ];
+    int32 uniFriend = 26 [ json_name = "UniFriend" ];
+    string displayName = 27 [ json_name = "DisplayName" ];
+    int32 chatRoomId = 28 [ json_name = "ChatRoomId" ];
+    string keyWord = 29 [ json_name = "KeyWord" ];
+    string encryChatRoomId = 30 [ json_name = "EncryChatRoomId" ];
+    int32 isOwner = 31 [ json_name = "IsOwner" ];
 }

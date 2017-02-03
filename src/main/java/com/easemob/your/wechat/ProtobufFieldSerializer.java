@@ -15,6 +15,6 @@ public class ProtobufFieldSerializer<T extends Message> extends JsonSerializer<T
     private static JsonFormat.Printer printer = JsonFormat.printer();
     @Override
     public void serialize(T value, JsonGenerator gen, SerializerProvider serializers) throws IOException, JsonProcessingException {
-        gen.writeString(printer.print(value));
+        gen.writeRawValue(printer.print(value));
     }
 }

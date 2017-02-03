@@ -1,5 +1,15 @@
 package com.easemob.your.wechat.impl;
 
+import java.io.IOException;
+import java.net.HttpCookie;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+import org.wcy123.protobuf.your.wechat.WechatProtos;
+
+import com.easemob.your.wechat.HttpCookieJsonDeserializer;
 import com.easemob.your.wechat.ProtobufFieldDeserializer;
 import com.easemob.your.wechat.ProtobufFieldSerializer;
 import com.easemob.your.wechat.YourWechatLoginInfo;
@@ -8,40 +18,73 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
-import org.wcy123.protobuf.your.wechat.WechatProtos;
-
-import java.io.IOException;
-
 import lombok.extern.slf4j.Slf4j;
 
 @Component
 @Slf4j
 public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRepository {
     public static final String PREFIX = "YW:user:";
+    private final ObjectMapper mapper;
     @Autowired
     StringRedisTemplate redisTemplate;
-    private final ObjectMapper mapper;
+
     public YourWechatLoginInfoRepositoryImpl() {
         mapper = new ObjectMapper();
         SimpleModule module = new SimpleModule()
-                .addDeserializer(WechatProtos.Root.class, new ProtobufFieldDeserializer(WechatProtos.Root.class));
-        module.addSerializer(WechatProtos.Root.class, new ProtobufFieldSerializer<>());
+                .addDeserializer(WechatProtos.WebInitResponse.class,
+                        new ProtobufFieldDeserializer(WechatProtos.WebInitResponse.class))
+                .addSerializer(WechatProtos.WebInitResponse.class, new ProtobufFieldSerializer<>())
+                .addDeserializer(WechatProtos.ContactListResponse.class,
+                        new ProtobufFieldDeserializer(WechatProtos.ContactListResponse.class))
+                .addSerializer(WechatProtos.ContactListResponse.class,
+                        new ProtobufFieldSerializer<>())
+                .addDeserializer(HttpCookie.class, new HttpCookieJsonDeserializer())
+                .addSerializer(WechatProtos.MemberList.class,
+                        new ProtobufFieldSerializer<>())
+                .addDeserializer(WechatProtos.MemberList.class, new ProtobufFieldDeserializer(WechatProtos.MemberList.class))
+
+        ;
         mapper.registerModule(module);
+    }
+
+    public ObjectMapper getMapper() {
+        return mapper;
     }
 
     @Override
     public YourWechatLoginInfo save(YourWechatLoginInfo info) {
         try {
-            redisTemplate.boundValueOps(getKey(String.valueOf(info.getWebInitResponse().getUser().getUin())))
-                    .set(mapper.writeValueAsString(info));
+            redisTemplate.boundValueOps(
+                    getUserKey(info)).set(mapper.writeValueAsString(info));
+            for (Map.Entry<String, HttpCookie> cookieEntry : info.getCookies().entrySet()) {
+                redisTemplate.boundHashOps(
+                        getUserCookieKey(info)).put(cookieEntry.getKey(),
+                                mapper.writeValueAsString(cookieEntry.getValue()));
+            }
+            for (WechatProtos.MemberList memberList : info.getContactListResponse()
+                    .getMemberListList()) {
+                redisTemplate.boundHashOps(
+                        getUserContactKey(info)).put(memberList.getUserName(),
+                                mapper.writeValueAsString(memberList));
+            }
         } catch (JsonProcessingException ex) {
             log.error("cannot save {}", ex);
             return info;
         }
         return info;
+    }
+
+    private String getUserContactKey(YourWechatLoginInfo info) {
+        return getUserKey(info) + ":contact";
+    }
+
+    private String getUserCookieKey(YourWechatLoginInfo info) {
+        return getUserKey(info) + ":cookie";
+    }
+
+    private String getUserKey(YourWechatLoginInfo info) {
+        final String s = String.valueOf(info.getWebInitResponse().getUser().getUin());
+        return getKey(s);
     }
 
     private String getKey(String s) {
@@ -50,11 +93,6 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
 
     @Override
     public YourWechatLoginInfo find(String url) {
-        try {
-            return mapper.readValue(redisTemplate.boundValueOps(getKey(url)).get(), YourWechatLoginInfo.class);
-        } catch (IOException e) {
-            log.error("cannot save {}", e);
-            return null;
-        }
+        throw new UnsupportedOperationException("not supported " + url );
     }
 }
