@@ -100,7 +100,9 @@ public class YourWechatLoginService {
             }else {
                 log.info("sorry, {} is not online", getUin(loginInfo));
             }
-        } finally {
+        } catch (Exception e) {
+            log.error("what ?", e);
+        } finally{
             wechatLoginInfoRepository
                     .unlock(String.valueOf(loginInfo.getWebInitResponse().getUser().getUin()));
         }
