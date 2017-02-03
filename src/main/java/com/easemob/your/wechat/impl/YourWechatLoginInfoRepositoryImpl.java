@@ -61,11 +61,10 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
                         getUserCookieKey(info)).put(cookieEntry.getKey(),
                                 mapper.writeValueAsString(cookieEntry.getValue()));
             }
-            for (WechatProtos.MemberList memberList : info.getContactListResponse()
-                    .getMemberListList()) {
+            for (Map.Entry<String, WechatProtos.MemberList> entry : info.getContactList().entrySet()) {
                 redisTemplate.boundHashOps(
-                        getUserContactKey(info)).put(memberList.getUserName(),
-                                mapper.writeValueAsString(memberList));
+                        getUserContactKey(info)).put(entry.getValue().getUserName(),
+                                mapper.writeValueAsString(entry.getValue()));
             }
         } catch (JsonProcessingException ex) {
             log.error("cannot save {}", ex);

@@ -188,7 +188,7 @@ public class WechatLoginApi {
             final ResponseEntity<WechatProtos.ContactListResponse> exchange =
                     restTemplate.exchange(uri, HttpMethod.GET, entity, WechatProtos.ContactListResponse.class);
             log.info("retrieveContactList:  {}", loginInfo.getWebInitResponse().getUser().getUin());
-            loginInfo.setContactListResponse(exchange.getBody());
+            loginInfo.mergeContactList(exchange.getBody());
             return Optional.of(loginInfo);
         } catch (RestClientException ex) {
             log.warn("showMobileLogin error {}", loginInfo, ex);

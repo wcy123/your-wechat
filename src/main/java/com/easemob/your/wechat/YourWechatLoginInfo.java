@@ -54,7 +54,7 @@ public class YourWechatLoginInfo {
     private ApiBaseResponse baseResponse;
     private WechatProtos.WebInitResponse webInitResponse;
     @JsonIgnore
-    private WechatProtos.ContactListResponse contactListResponse;
+    private Map<String, WechatProtos.MemberList> contactList = new HashMap<>();
     @JsonIgnore
     private Map<String, HttpCookie> cookies = new HashMap<>();
 
@@ -138,4 +138,9 @@ public class YourWechatLoginInfo {
         return httpHeaders;
     }
 
+    public void mergeContactList(WechatProtos.ContactListResponse contactListResponse) {
+        for (WechatProtos.MemberList memberList : contactListResponse.getMemberListList()) {
+            contactList.put(memberList.getUserName(), memberList);
+        }
+    }
 }
