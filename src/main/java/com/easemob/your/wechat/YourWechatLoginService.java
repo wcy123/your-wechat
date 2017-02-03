@@ -1,5 +1,7 @@
 package com.easemob.your.wechat;
 
+import static com.easemob.your.wechat.YourWechatLoginInfoUtils.getUin;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -28,19 +30,16 @@ import org.springframework.web.client.ResourceAccessException;
 
 import lombok.extern.slf4j.Slf4j;
 
-import static com.easemob.your.wechat.YourWechatLoginInfoUtils.getUin;
-
 @Component
 @Slf4j
 public class YourWechatLoginService {
+    public static final String YW_QRCODE = "YW:qrcode:*";
     private final static Pattern statusCodePattern =
             Pattern.compile("window.code=(\\d+).*");
     private final static Pattern redirectUrlPattern =
             Pattern.compile("window.redirect_uri=\"(\\S+)\";.*");
     private final static Pattern loginStatusPattern =
             Pattern.compile("YW:user:(.*):loginStatus");
-    public static final String YW_QRCODE = "YW:qrcode:*";
-
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     ExecutorService threadPool = Executors.newCachedThreadPool();
 
@@ -94,15 +93,15 @@ public class YourWechatLoginService {
     private void syncLoginUser(YourWechatLoginInfo loginInfo) {
         try {
             final boolean online = wechatLoginInfoRepository.isOnline(getUin(loginInfo));
-            if(online) {
+            if (online) {
                 Optional<String> syncStatus = loginApiWrapper.checkSync(loginInfo);
                 this.maybeSync(syncStatus, loginInfo);
-            }else {
+            } else {
                 log.info("sorry, {} is not online", getUin(loginInfo));
             }
         } catch (Exception e) {
             log.error("what ?", e);
-        } finally{
+        } finally {
             wechatLoginInfoRepository
                     .unlock(String.valueOf(loginInfo.getWebInitResponse().getUser().getUin()));
         }
@@ -142,7 +141,7 @@ public class YourWechatLoginService {
     }
 
     private void checkOneQrCode(String redisKey) {
-        final String code = redisKey.substring(YW_QRCODE.length() -1);
+        final String code = redisKey.substring(YW_QRCODE.length() - 1);
         final String status = redisTemplate.boundValueOps(redisKey(code)).get();
         final Optional<String> loginStatus = loginApiWrapper.checkQrCode(code);
         log.info("start checking qrcode({})", code);
@@ -181,12 +180,11 @@ public class YourWechatLoginService {
                 .flatMap(loginApiWrapper::showMobileLogin)
                 .flatMap(loginApiWrapper::retrieveContactList)
                 .flatMap(this::saveLoginInfo)
-                .flatMap(this::setOnline)
-        ;
+                .flatMap(this::setOnline);
 
     }
 
-    private  Optional<YourWechatLoginInfo> setOnline(YourWechatLoginInfo info) {
+    private Optional<YourWechatLoginInfo> setOnline(YourWechatLoginInfo info) {
         wechatLoginInfoRepository.setOnline(getUin(info), true);
         wechatLoginInfoRepository.unlock(getUin(info));
         return Optional.of(info);
@@ -246,5 +244,14 @@ public class YourWechatLoginService {
 
     private String redisKey(String code) {
         return "YW:qrcode:" + code;
+    }
+
+    public boolean sendTextMessage(String uin, String toUser, String content) {
+        final YourWechatLoginInfo loginInfo = wechatLoginInfoRepository.find(uin);
+        if (loginInfo == null) {
+            throw new ResourceAccessException("cannot found uin(" + uin + ")");
+        }
+        loginApiWrapper.sendRawMessage(loginInfo, 1, toUser, content);
+        return true;
     }
 }

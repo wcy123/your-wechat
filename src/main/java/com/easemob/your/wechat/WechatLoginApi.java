@@ -4,6 +4,7 @@ import static com.easemob.your.wechat.YourWechatLoginInfoUtils.getUin;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -270,7 +271,7 @@ public class WechatLoginApi {
     public Optional<YourWechatLoginInfo> syncMsg(YourWechatLoginInfo loginInfo) {
         try {
             log.info("syncMsg: {}", getUin(loginInfo));
-            final HttpHeaders headers = loginInfo.generateCookieHeader();
+            final HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
             final long localTime = System.currentTimeMillis() / 1000;
             final WechatProtos.SyncMessageResponse body =
@@ -327,5 +328,40 @@ public class WechatLoginApi {
             log.warn("fail http request {} {}", method, urlWithQuery, ex);
             return null;
         }
+    }
+
+    public Optional<YourWechatLoginInfo> sendRawMessage(YourWechatLoginInfo loginInfo, int msgType,
+            String toUser, String content) {
+        try {
+            log.info("sendRawMessage start: {}", getUin(loginInfo));
+            final HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+            final long localTime = System.currentTimeMillis() / 1000;
+            final ImmutableMap<String, Object> msgObject =
+                    ImmutableMap.<String, Object>builder()
+                            .put("Content", content)
+                            .put("FromUserName", loginInfo.getWebInitResponse().getUser().getUserName())
+                            .put("ToUserName", toUser)
+                            .put("Type", new Integer(msgType))
+                            .put("LocalID", new Long(localTime * 1000))
+                            .put("ClientMsgId", new Long(localTime * 1000))
+                    .build();
+            final String body =
+                    request(loginInfo,
+                            HttpMethod.POST,
+                            loginInfo.getRelativeUrl("webwxsendmsg"),
+                            Collections.EMPTY_MAP,
+                            headers,
+                            ImmutableMap.of(
+                                    "BaseRequest", loginInfo.buildBaseRequest(),
+                                    "Scene", 0,
+                                    "Msg", msgObject),
+                            String.class);
+            log.info("sendRawMessage end:  {} -> {}", getUin(loginInfo), body);
+            return Optional.of(loginInfo);
+        } catch (Exception ex) {
+            log.warn("sendRawMessage error {}", loginInfo, ex);
+        }
+        return Optional.empty();
     }
 }
