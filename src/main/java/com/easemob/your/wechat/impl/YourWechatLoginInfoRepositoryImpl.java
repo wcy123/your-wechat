@@ -47,6 +47,10 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
         mapper.registerModule(module);
     }
 
+    public void setRedisTemplate(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
+
     public ObjectMapper getMapper() {
         return mapper;
     }
@@ -55,34 +59,40 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
     public YourWechatLoginInfo save(YourWechatLoginInfo info) {
         try {
             redisTemplate.boundValueOps(
-                    getUserKey(info)).set(mapper.writeValueAsString(info));
+                    getUserKey(getUin(info))).set(mapper.writeValueAsString(info));
             for (Map.Entry<String, HttpCookie> cookieEntry : info.getCookies().entrySet()) {
                 redisTemplate.boundHashOps(
-                        getUserCookieKey(info)).put(cookieEntry.getKey(),
+                        getUserCookieKey(getUin(info))).put(cookieEntry.getKey(),
                                 mapper.writeValueAsString(cookieEntry.getValue()));
             }
             for (Map.Entry<String, WechatProtos.MemberList> entry : info.getContactList().entrySet()) {
                 redisTemplate.boundHashOps(
-                        getUserContactKey(info)).put(entry.getValue().getUserName(),
+                        getUserContactKey(getUin(info))).put(entry.getValue().getUserName(),
                                 mapper.writeValueAsString(entry.getValue()));
             }
+            //redisTemplate.boundValueOps(getUserLoginStatus(getUin(info))).set(String.valueOf(info.getLoginned()));
         } catch (JsonProcessingException ex) {
             log.error("cannot save {}", ex);
             return info;
         }
         return info;
     }
-
-    private String getUserContactKey(YourWechatLoginInfo info) {
-        return getUserKey(info) + ":contact";
+    private String getUin(YourWechatLoginInfo info) {
+        return String.valueOf(info.getWebInitResponse().getUser().getUin());
+    }
+    private String getUserContactKey(String uin) {
+        return getUserKey(uin) + ":contact";
+    }
+    private String getUserLoginStatus(String uin) {
+        return getUserKey(uin) + ":loginStatus";
     }
 
-    private String getUserCookieKey(YourWechatLoginInfo info) {
-        return getUserKey(info) + ":cookie";
+    private String getUserCookieKey(String uin) {
+        return getUserKey(uin) + ":cookie";
     }
 
-    private String getUserKey(YourWechatLoginInfo info) {
-        final String s = String.valueOf(info.getWebInitResponse().getUser().getUin());
+    private String getUserKey(String uin) {
+        final String s = String.valueOf(uin);
         return getKey(s);
     }
 
@@ -91,7 +101,21 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
     }
 
     @Override
-    public YourWechatLoginInfo find(String url) {
-        throw new UnsupportedOperationException("not supported " + url );
+    public YourWechatLoginInfo find(String uin) {
+        try {
+            final YourWechatLoginInfo info = mapper.readValue(redisTemplate.boundValueOps(getUserKey(uin)).get(), YourWechatLoginInfo.class);
+            for (Map.Entry<String, String> cookieEntry : redisTemplate.<String, String>boundHashOps(getUserCookieKey(uin)).entries().entrySet()) {
+                final HttpCookie httpCookie = mapper.readValue(cookieEntry.getValue(), HttpCookie.class);
+                info.getCookies().put(cookieEntry.getKey(), httpCookie);
+            }
+            for (Map.Entry<String, String> memberListEntry : redisTemplate.<String, String>boundHashOps(getUserContactKey(uin)).entries().entrySet()) {
+                final WechatProtos.MemberList memberList = mapper.readValue(memberListEntry.getValue(), WechatProtos.MemberList.class);
+                info.getContactList().put(memberListEntry.getKey(), memberList);
+            }
+            return info;
+        } catch (IOException ex) {
+            log.error("cannot find {} ",uin, ex);
+            return null;
+        }
     }
 }

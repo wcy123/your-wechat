@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,6 +36,8 @@ public class YourWechatLoginService {
             Pattern.compile("window.code=(\\d+).*");
     private final static Pattern redirectUrlPattern =
             Pattern.compile("window.redirect_uri=\"(\\S+)\";.*");
+    private final static Pattern loginStatusPattern =
+            Pattern.compile("YW:user:(.*):loginStatus");
 
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     @Autowired
@@ -60,10 +64,26 @@ public class YourWechatLoginService {
     }
 
     @Scheduled(fixedRate = 5000)
-    public void checkQrCode() {
-        String pattern = "YW:qrcode:*";
-        final ScanOptions options = ScanOptions.scanOptions().match(pattern).count(10).build();
+    public void checkOneQrCode() {
+        scanForPattern("YW:qrcode:*", this::checkOneQrCode);
+    }
+    @Scheduled(fixedRate = 5000)
+    public void checkSyncStatus() {
+        scanForPattern("YW:user:*:loginStatus", this::checkOneLoginUser);
+    }
 
+    private void checkOneLoginUser(String s) {
+        final Matcher matcher = loginStatusPattern.matcher(s);
+        if(matcher.find()){
+            final String uin = matcher.group(1);
+            final YourWechatLoginInfo loginInfo = wechatLoginInfoRepository.find(uin);
+        }else {
+            log.error("logical error: {}", s);
+        }
+    }
+
+    private void scanForPattern(String pattern, Consumer<String> func) {
+        final ScanOptions options = ScanOptions.scanOptions().match(pattern).count(10).build();
         redisTemplate.execute(new RedisCallback<Iterable<byte[]>>() {
             @Override
             public Iterable<byte[]> doInRedis(RedisConnection connection)
@@ -75,7 +95,7 @@ public class YourWechatLoginService {
                         final byte[] bytes = cursor.next();
                         final int prefixLength = pattern.length() - 1;
                         final int len = bytes.length - prefixLength;
-                        checkQrCode(new String(bytes, prefixLength, len, Charset.forName("UTF-8")));
+                        func.accept(new String(bytes, prefixLength, len, Charset.forName("UTF-8")));
                     }
                 } catch (IOException e) {
                     log.error("cannot scan redis", e);
@@ -83,10 +103,11 @@ public class YourWechatLoginService {
                 return binaryKeys;
             }
         });
-
     }
 
-    private void checkQrCode(String code) {
+
+
+    private void checkOneQrCode(String code) {
         final String status = redisTemplate.boundValueOps(redisKey(code)).get();
         final Optional<String> loginStatus = loginApiWrapper.checkQrCode(code);
         log.info("start checking qrcode({})", code);
@@ -128,25 +149,27 @@ public class YourWechatLoginService {
 
     }
 
-
-
-    private Optional<YourWechatLoginInfo> checkBaseReqeustRetCode(YourWechatLoginInfo yourWechatLoginInfo) {
-        if(yourWechatLoginInfo.getBaseResponse().getRet().equals(0)){
+    private Optional<YourWechatLoginInfo> checkBaseReqeustRetCode(
+            YourWechatLoginInfo yourWechatLoginInfo) {
+        if (yourWechatLoginInfo.getBaseResponse().getRet().equals(0)) {
             return Optional.of(yourWechatLoginInfo);
-        }else {
+        } else {
             log.error("sorry, login failed. {}", yourWechatLoginInfo);
             return Optional.empty();
         }
     }
-    private Optional<YourWechatLoginInfo> checkWebInitResponse(YourWechatLoginInfo yourWechatLoginInfo) {
-        if(!StringUtils.isEmpty(yourWechatLoginInfo.getWebInitResponse().getUser().getUin())){
+
+    private Optional<YourWechatLoginInfo> checkWebInitResponse(
+            YourWechatLoginInfo yourWechatLoginInfo) {
+        if (!StringUtils.isEmpty(yourWechatLoginInfo.getWebInitResponse().getUser().getUin())) {
             return Optional.of(yourWechatLoginInfo);
-        }else {
+        } else {
             log.error("sorry, no uin found. {}", yourWechatLoginInfo);
             return Optional.empty();
         }
     }
-    private  Optional<YourWechatLoginInfo> saveLoginInfo(YourWechatLoginInfo loginInfo) {
+
+    private Optional<YourWechatLoginInfo> saveLoginInfo(YourWechatLoginInfo loginInfo) {
         wechatLoginInfoRepository.save(loginInfo);
         return Optional.empty();
     }

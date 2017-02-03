@@ -52,6 +52,7 @@ public class YourWechatLoginInfo {
     private Boolean loginned = false;
     private String deviceId = null;
     private ApiBaseResponse baseResponse;
+    @JsonIgnore
     private WechatProtos.WebInitResponse webInitResponse;
     @JsonIgnore
     private Map<String, WechatProtos.MemberList> contactList = new HashMap<>();
