@@ -20,6 +20,8 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.protocol.HttpContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -37,12 +39,13 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import com.google.common.collect.ImmutableList;
 
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
+import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.util.JedisURIHelper;
 
 @Configuration
 @EnableScheduling
+@Slf4j
 public class YourWechatConfig {
     private static final int DEFAULT_MAX_TOTAL_CONNECTIONS = 100;
     private static final int DEFAULT_MAX_CONNECTIONS_PER_ROUTE = 5;
@@ -54,7 +57,7 @@ public class YourWechatConfig {
     }
 
     @Bean
-    public JedisPool getPool() throws URISyntaxException {
+    public RedisConnectionFactory jedisConnectionFactory() throws URISyntaxException {
         URI redisURI = new URI(System.getenv("REDIS_URL"));
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         // poolConfig.setmaxc(10);
@@ -63,8 +66,13 @@ public class YourWechatConfig {
         poolConfig.setTestOnBorrow(true);
         poolConfig.setTestOnReturn(true);
         poolConfig.setTestWhileIdle(true);
-        JedisPool pool = new JedisPool(poolConfig, redisURI);
-        return pool;
+        JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory(poolConfig);
+        jedisConnectionFactory.setHostName(redisURI.getHost());
+        jedisConnectionFactory.setPort(redisURI.getPort());
+        jedisConnectionFactory.setPassword(JedisURIHelper.getPassword(redisURI));
+        jedisConnectionFactory.setDatabase(JedisURIHelper.getDBIndex(redisURI));
+        log.info("connecting to {}" +redisURI);
+        return jedisConnectionFactory;
     }
 
     @Bean

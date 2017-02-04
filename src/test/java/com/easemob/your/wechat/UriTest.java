@@ -61,5 +61,10 @@ public class UriTest {
         System.out.println(httpHeaders);
     }
 
+    @Test
+    public void main4() throws Exception {
+        URI uri = new URI("redis://h:p9e3b976fc456d217f271291710f52eef196e2040c46c5f6b1e84cb5a0e73e5c8@ec2-34-197-246-201.compute-1.amazonaws.com:19269");
+        System.out.println(uri);
 
+    }
 }
