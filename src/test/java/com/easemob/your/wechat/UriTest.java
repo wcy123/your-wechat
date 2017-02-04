@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.http.HttpHeaders;
 
@@ -17,6 +18,8 @@ import com.google.common.collect.ImmutableList;
 /**
  * Created by wangchunye on 1/25/17.
  */
+@Ignore
+
 public class UriTest {
     @Test
     public void main1() throws Exception {

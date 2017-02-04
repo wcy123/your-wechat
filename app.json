@@ -1,0 +1,6 @@
+{
+  "name": "Manage Your wechat",
+  "description": "a web application which can manage many wechat accounts.",
+  "image": "heroku/java",
+  "addons": [ "heroku-redis" ]
+}

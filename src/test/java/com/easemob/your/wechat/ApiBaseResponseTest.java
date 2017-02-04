@@ -1,5 +1,6 @@
 package com.easemob.your.wechat;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -14,6 +15,7 @@ import javax.xml.bind.Unmarshaller;
 import static org.junit.Assert.*;
 
 
+@Ignore
 public class ApiBaseResponseTest {
     @Test
     public void main1() throws Exception {

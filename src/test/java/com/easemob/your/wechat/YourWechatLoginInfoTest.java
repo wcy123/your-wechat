@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -22,6 +23,7 @@ import redis.clients.jedis.JedisPoolConfig;
 import static org.junit.Assert.*;
 
 
+@Ignore
 public class YourWechatLoginInfoTest {
     final YourWechatLoginInfoRepositoryImpl yourWechatLoginInfoRepository = new YourWechatLoginInfoRepositoryImpl();
 

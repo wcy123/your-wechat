@@ -2,6 +2,8 @@ package com.easemob.your.wechat;
 
 import java.io.IOException;
 import java.net.HttpCookie;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
@@ -35,6 +37,10 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import com.google.common.collect.ImmutableList;
 
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
+
 @Configuration
 @EnableScheduling
 public class YourWechatConfig {
@@ -45,6 +51,20 @@ public class YourWechatConfig {
     @Bean
     public WechatLoginApi loginApiWrapper() {
         return new WechatLoginApi();
+    }
+
+    @Bean
+    public JedisPool getPool() throws URISyntaxException {
+        URI redisURI = new URI(System.getenv("REDIS_URL"));
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        // poolConfig.setmaxc(10);
+        poolConfig.setMaxIdle(5);
+        poolConfig.setMinIdle(1);
+        poolConfig.setTestOnBorrow(true);
+        poolConfig.setTestOnReturn(true);
+        poolConfig.setTestWhileIdle(true);
+        JedisPool pool = new JedisPool(poolConfig, redisURI);
+        return pool;
     }
 
     @Bean

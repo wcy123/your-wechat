@@ -3,6 +3,7 @@ package com.easemob.your.wechat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,7 @@ import javax.xml.bind.Unmarshaller;
 /**
  * Created by wangchunye on 1/31/17.
  */
+@Ignore
 public class DemoJAX {
     @Test
     public void main1() throws Exception {
