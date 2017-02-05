@@ -3,6 +3,7 @@ package com.easemob.your.wechat.impl;
 import java.io.IOException;
 import java.net.HttpCookie;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -127,7 +128,9 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
     public boolean lock(String uin) {
         RedisAtomicLong redisAtomicLong =
                 new RedisAtomicLong(getUserLockKey(uin), redisTemplate.getConnectionFactory());
-        return redisAtomicLong.compareAndSet(0, 1);
+        final boolean b = redisAtomicLong.compareAndSet(0, 1);
+        redisAtomicLong.expire(1, TimeUnit.SECONDS);
+        return b;
     }
 
     @Override
