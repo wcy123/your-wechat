@@ -143,6 +143,10 @@ public class YourWechatConfig {
                         new ProtobufFieldSerializer<>())
                 .addDeserializer(WechatProtos.SyncKey.class,
                         new ProtobufFieldDeserializer(WechatProtos.SyncKey.class))
+                .addSerializer(WechatProtos.UserResponse.class,
+                        new ProtobufFieldSerializer<>())
+                .addDeserializer(WechatProtos.UserResponse.class,
+                        new ProtobufFieldDeserializer(WechatProtos.UserResponse.class))
                 ;
         mapper.registerModule(module);
         return mapper;

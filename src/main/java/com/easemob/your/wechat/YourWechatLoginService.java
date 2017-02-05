@@ -27,6 +27,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
+import org.wcy123.protobuf.your.wechat.WechatProtos;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -264,5 +265,25 @@ public class YourWechatLoginService {
             throw new UinNotFoundException("cannot found uin(" + uin + ")");
         }
         wechatLoginInfoRepository.delete(loginInfo);
+    }
+
+    public  List<WechatProtos.UserResponse> getAllUsers() {
+        final List<WechatProtos.UserResponse> list = new ArrayList<>();
+        scanForPattern("YW:user:*:loginStatus", (user) ->{
+            final Matcher matcher = loginStatusPattern.matcher(user);
+            if (matcher.find()) {
+                final String uin = matcher.group(1);
+                YourWechatLoginInfo info = wechatLoginInfoRepository.find(uin);
+                if(info!=null){
+                    list.add(WechatProtos.UserResponse.newBuilder()
+                            .setUin(uin)
+                            .setOnline(wechatLoginInfoRepository.isOnline(uin))
+                            .setNumberOfContacts(info.getContactList().size())
+                            .setUser(info.getWebInitResponse().getUser())
+                    .build());
+                }
+            }
+        });
+        return list;
     }
 }

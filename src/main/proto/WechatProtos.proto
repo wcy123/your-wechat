@@ -231,3 +231,10 @@ message RecommendInfo {
     string ticket = 13 [ json_name = "Ticket" ];
     int32 opCode = 14 [ json_name = "OpCode" ];
 }
+
+message UserResponse {
+    string uin = 1;
+    User user = 2;
+    bool  online = 3;
+    int32 numberOfContacts = 4;
+}

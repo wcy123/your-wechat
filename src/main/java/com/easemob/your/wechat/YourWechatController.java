@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import org.wcy123.protobuf.your.wechat.WechatProtos;
 
 import java.io.IOException;
+import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,7 +30,14 @@ public class YourWechatController {
                 .header("Cache-Control", "no-cache")
                 .body(service.getQrImage());
     }
-    @RequestMapping(value = "/{uin}/messages/{toUser}", method = RequestMethod.POST)
+    @RequestMapping(value = "/users", method = RequestMethod.GET)
+    public ResponseEntity<List<WechatProtos.UserResponse>> users() {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, String.valueOf(MediaType.TEXT_PLAIN))
+                .header("Cache-Control", "no-cache")
+                .body(service.getAllUsers());
+    }
+    @RequestMapping(value = "/user/{uin}/messages/{toUser}", method = RequestMethod.POST)
     public ResponseEntity<String> sendMsg(
             @PathVariable("uin") String uin,
             @PathVariable("toUser") String toUser,
@@ -39,7 +48,7 @@ public class YourWechatController {
                 .header("Cache-Control", "no-cache")
                 .body("OK");
     }
-    @RequestMapping(value = "/{uin}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/user/{uin}", method = RequestMethod.DELETE)
     public ResponseEntity<String> deleteUin(@PathVariable("uin") String uin) {
         service.deleteUin(uin);
         return ResponseEntity.ok()
