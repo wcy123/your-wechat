@@ -1,0 +1,37 @@
+<html>
+<head><title>YourWechat: user</title>
+    <script src="http://lib.sinaapp.com/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
+    <script type="text/javascript" src="jquery.query.js"></script>
+    <script>
+        var uin;
+        $(function(){
+            uin = $.query.get('uin');
+        });
+
+        $(function () {
+            var $userList = $("#contactList tbody");
+            $userList.empty();
+            $.getJSON("/user/" + uin + "/contacts", null, function(list){
+                list.forEach(function(user){
+                    $userList.append($("<tr>")
+                                             .append($("<td>").append($("<a>", {"href":"sendMsg.html?uin=" + uin + "&" + "to=" +  user.UserName}).text(user.UserName)))
+                                             .append($("<td>").text(user.NickName))
+                                             .append($("<td>").text(user.Province + " " + user.City)
+                                             ));
+
+                });
+            });
+        })
+    </script>
+</head>
+<body>
+<table id="contactList">
+    <caption title="contact"></caption>
+    <thead>
+    <tr><td>uin</td><td>名字</td><td>签名</td></tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+</body>
+</html>

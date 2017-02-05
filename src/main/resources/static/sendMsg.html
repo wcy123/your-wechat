@@ -1,0 +1,36 @@
+<html>
+<head><title>YourWechat: send message</title>
+    <script src="http://lib.sinaapp.com/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
+    <script type="text/javascript" src="jquery.query.js"></script>
+    <script>
+        var uin;
+        var toUser;
+        $(function () {
+            uin = $.query.get('uin');
+            toUser = $.query.get('to');
+        });
+        function sendMsg() {
+            var txt = $("#txt").val();
+            $.ajax({
+                       type: "POST",
+                       url: "/user/" + uin + "/messages/" + toUser,
+                       contentType: "text/plain; charset=utf-8",
+                       data: txt,
+                       success: function (obj) {
+                           $("#panel").text("obj")
+                       }
+                   })
+                    .fail(function (jqXHR, textStatus, errorThrown) {
+                        alert(textStatus);
+                    });
+        }
+    </script>
+</head>
+<body>
+<textarea id="txt" style="width:600px;height:400px"></textarea>
+<br/>
+<button onclick="sendMsg()">send</button>
+<br/>
+<div id="panel"></div>
+</body>
+</html>

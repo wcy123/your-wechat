@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
@@ -285,5 +287,15 @@ public class YourWechatLoginService {
             }
         });
         return list;
+    }
+
+    public  List<WechatProtos.MemberList> getContactList(String uin) {
+        final YourWechatLoginInfo loginInfo = wechatLoginInfoRepository.find(uin);
+        if (loginInfo == null) {
+            throw new UinNotFoundException("cannot found uin(" + uin + ")");
+        }
+        return loginInfo.getContactList().entrySet().stream()
+                .map(Map.Entry::getValue)
+                .collect(Collectors.toList());
     }
 }

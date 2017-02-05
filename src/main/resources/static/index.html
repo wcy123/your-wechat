@@ -1,10 +1,33 @@
 <html>
-<head><title>hello world</title>
+<head><title>YourWechat</title>
     <script src="http://lib.sinaapp.com/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
+    <script>
+        $(function () {
+            var $userList = $("#userList tbody");
+            $userList.empty();
+            $.getJSON("/users", null, function(list){
+                list.forEach(function(user){
+                    $userList.append($("<tr>")
+                                             .append($("<td>").text(user.online?"online":"offline"))
+                                             .append($("<td>").append($("<a>", {"href":"showUser.html?uin=" + user.uin}).text(user.uin)))
+                                             .append($("<td>").text(user.user.NickName))
+                                             .append($("<td>").text(user.user.Signature)));
+
+                });
+            });
+        })
+    </script>
 </head>
 <body>
-    <img src="qrImage.jpg" />
+<a href="login.html">start a new login</a>
+   <table id="userList">
+       <caption title="user list"></caption>
+       <thead>
+       <tr><td>online</td></td><td>uin</td><td>名字</td><td>签名</td></tr>
+       </thead>
+       <tbody>
 
-hello
+       </tbody>
+   </table>
 </body>
 </html>
