@@ -43,7 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Data
 @Slf4j
-public class YourWechatLoginInfo {
+public class getUserKeyYourWechatLoginInfo {
     private String rawUrl;
     private URI baseUrl;
     private Map<String, String> uriQueryMap;

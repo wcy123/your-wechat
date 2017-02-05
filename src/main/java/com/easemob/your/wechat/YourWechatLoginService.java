@@ -257,4 +257,12 @@ public class YourWechatLoginService {
         loginApiWrapper.sendRawMessage(loginInfo, 1, toUser, content);
         return true;
     }
+
+    public void deleteUin(String uin) {
+        final YourWechatLoginInfo loginInfo = wechatLoginInfoRepository.find(uin);
+        if (loginInfo == null) {
+            throw new UinNotFoundException("cannot found uin(" + uin + ")");
+        }
+        wechatLoginInfoRepository.delete(loginInfo);
+    }
 }

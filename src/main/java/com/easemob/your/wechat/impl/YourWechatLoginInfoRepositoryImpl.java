@@ -154,4 +154,14 @@ public class YourWechatLoginInfoRepositoryImpl implements YourWechatLoginInfoRep
                 new RedisAtomicLong(getUserLoginStatus(uin), redisTemplate.getConnectionFactory());
         redisAtomicLong.set(online ? 1 : 0);
     }
+
+    @Override
+    public void delete(YourWechatLoginInfo loginInfo) {
+        String uin = getUin(loginInfo);
+        redisTemplate.delete(getUserContactKey(uin));
+        redisTemplate.delete(getUserLoginStatus(uin));
+        redisTemplate.delete(getUserCookieKey(uin));
+        redisTemplate.delete(getUserLockKey(uin));
+        redisTemplate.delete(getUserKey(uin));
+    }
 }

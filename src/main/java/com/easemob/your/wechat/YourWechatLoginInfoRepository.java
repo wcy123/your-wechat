@@ -17,4 +17,6 @@ public interface YourWechatLoginInfoRepository {
     boolean isOnline(String uin);
 
     void setOnline(String uin, boolean online);
+
+    void delete(YourWechatLoginInfo loginInfo);
 }

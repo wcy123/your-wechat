@@ -39,6 +39,14 @@ public class YourWechatController {
                 .header("Cache-Control", "no-cache")
                 .body("OK");
     }
+    @RequestMapping(value = "/{uin}", method = RequestMethod.DELETE)
+    public ResponseEntity<String> deleteUin(@PathVariable("uin") String uin) {
+        service.deleteUin(uin);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, String.valueOf(MediaType.TEXT_PLAIN))
+                .header("Cache-Control", "no-cache")
+                .body("OK");
+    }
     @ExceptionHandler({YourWeChatException.class})
     public ResponseEntity handleErrorYourWeChatException(YourWeChatException ex) throws IOException {
         log.error("YourWeChatException", ex);
