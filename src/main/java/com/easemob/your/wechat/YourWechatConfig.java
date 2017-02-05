@@ -68,8 +68,12 @@ public class YourWechatConfig {
         poolConfig.setTestWhileIdle(true);
         JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory(poolConfig);
         jedisConnectionFactory.setHostName(redisURI.getHost());
-        jedisConnectionFactory.setPort(redisURI.getPort());
-        jedisConnectionFactory.setPassword(JedisURIHelper.getPassword(redisURI));
+        if (redisURI.getPort() != -1) {
+            jedisConnectionFactory.setPort(redisURI.getPort());
+        }
+        if (JedisURIHelper.getPassword(redisURI) != null) {
+            jedisConnectionFactory.setPassword(JedisURIHelper.getPassword(redisURI));
+        }
         jedisConnectionFactory.setDatabase(JedisURIHelper.getDBIndex(redisURI));
         log.info("connecting to {}" +redisURI);
         return jedisConnectionFactory;

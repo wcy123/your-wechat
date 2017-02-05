@@ -249,7 +249,10 @@ public class YourWechatLoginService {
     public boolean sendTextMessage(String uin, String toUser, String content) {
         final YourWechatLoginInfo loginInfo = wechatLoginInfoRepository.find(uin);
         if (loginInfo == null) {
-            throw new ResourceAccessException("cannot found uin(" + uin + ")");
+            throw new UinNotFoundException("cannot found uin(" + uin + ")");
+        }
+        if(! wechatLoginInfoRepository.isOnline(getUin(loginInfo))){
+            throw new UinOfflineException("uin(" + uin + ") is offline");
         }
         loginApiWrapper.sendRawMessage(loginInfo, 1, toUser, content);
         return true;
